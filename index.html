@@ -1388,21 +1388,28 @@
         });
     }
 
+    // MODIFICADO: Remoção da confirmação (confirmBox)
     async function removeManagementItem(type, id, targetButton) {
-      const itemNome = targetButton.closest('.mgmt-list-item').querySelector('span').textContent;
-      
-      const ok = await confirmBox(`Tem certeza que deseja excluir "${itemNome}"?`, "Confirmar Exclusão", "Excluir", "btn-danger w-full");
-      if (!ok) return;
-      
-      const path = `_listas/${type}/${id}`;
-      remove(ref(db, path))
-        .then(() => {
-          toast(`"${itemNome}" excluído.`, "ok");
-        })
-        .catch((e) => {
-          console.error(e);
-          toast("Erro ao excluir.", "error");
-        });
+      try {
+        const itemNome = targetButton.closest('.mgmt-list-item').querySelector('span').textContent;
+        
+        // REMOVIDO: Confirmação (confirmBox)
+        // const ok = await confirmBox(`Tem certeza que deseja excluir "${itemNome}"?`, "Confirmar Exclusão", "Excluir", "btn-danger w-full");
+        // if (!ok) return;
+        
+        const path = `_listas/${type}/${id}`;
+        remove(ref(db, path))
+          .then(() => {
+            toast(`"${itemNome}" excluído.`, "ok");
+          })
+          .catch((e) => {
+            console.error(e);
+            toast("Erro ao excluir.", "error");
+          });
+      } catch (e) {
+         console.error('Erro ao excluir item de gerenciamento:', e);
+         toast('Erro ao excluir.', 'error');
+      }
     }
 
     /**
@@ -1549,12 +1556,14 @@
       // NOVO: Listener para o botão Resetar
       $("#btn-reset-all").addEventListener("click", resetAllData);
 
+      // MODIFICADO: Listener de delegação único e corrigido
       $("#management-view").addEventListener("click", async (e) => {
         const button = e.target.closest("button[data-action='delete-mgmt']");
         if (button) {
           const id = button.dataset.id;
           const type = button.dataset.type;
-          await removeManagementItem(type, id, button); // Passa o botão
+          // Passa o 'button' para a função para que ela possa encontrar o nome do item
+          await removeManagementItem(type, id, button); 
         }
       });
       
@@ -1565,3 +1574,4 @@
   </script>
 </body>
 </html>
+
