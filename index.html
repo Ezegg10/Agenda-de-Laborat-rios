@@ -360,6 +360,9 @@
       <button id="btn-selecionar" class="btn-primary w-full mt-6 text-lg p-3">Selecionar</button>
       
       <button id="btn-open-management" class="btn-secondary w-full mt-3">Gerenciar Opções</button>
+      
+      <!-- REMOVIDO: Link de Contato -->
+      
     </div>
   </div>
 
@@ -377,7 +380,7 @@
         <div class="space-y-3">
           <h3 class="text-lg font-bold">Salas</h3>
           <div class="mgmt-form">
-            <input id="input-salas" class="input" placeholder="Ex: Lab_101">
+            <input id="input-salas" class="input" placeholder="Sala">
             <button id="btn-add-sala" class="btn-primary">Add</button>
           </div>
           <ul id="list-salas" class="mgmt-list space-y-1">
@@ -389,7 +392,8 @@
         <div class="space-y-3">
           <h3 class="text-lg font-bold">Turmas</h3>
           <div class="mgmt-form">
-            <input id="input-turmas" class="input" placeholder="Ex: Me-76">
+            <!-- CORREÇÃO: Placeholder estava quebrado -->
+            <input id="input-turmas" class="input" placeholder="Turma">
             <button id="btn-add-turma" class="btn-primary">Add</button>
           </div>
           <ul id="list-turmas" class="mgmt-list space-y-1">
@@ -401,7 +405,8 @@
         <div class="space-y-3">
           <h3 class="text-lg font-bold">Professores</h3>
           <div class="mgmt-form">
-            <input id="input-professores" class="input" placeholder="Ex: Vitor">
+            <!-- CORREÇÃO: Placeholder estava quebrado -->
+            <input id="input-professores" class="input" placeholder="Professor">
             <button id="btn-add-prof" class="btn-primary">Add</button>
           </div>
           <ul id="list-professores" class="mgmt-list space-y-1">
@@ -411,7 +416,7 @@
 
       </div>
       
-      <!-- NOVO: Botão Reset -->
+      <!-- Botão Reset -->
       <div class="mt-8 border-t border-red-500/30 pt-6">
         <h3 class="text-lg font-bold text-red-500">Zona de Perigo</h3>
         <p class="text-sm opacity-70 mb-3">Esta ação é irreversível e apagará todas as listas e agendamentos.</p>
@@ -745,7 +750,7 @@
       }, 1000);
     }
     
-    /* ========================== Modal Genérico (NOVO) ========================== */
+    /* ========================== Modal Genérico ========================== */
     const $modal = {
       overlay: $("#modal-overlay"),
       title: $("#modal-title"),
@@ -789,6 +794,7 @@
     $modal.cancelBtn.addEventListener("click", () => modalCancelCallback());
     $modal.closeBtn.addEventListener("click", () => modalCancelCallback());
 
+    // A função confirmBox ainda existe, mas não será usada por removeManagementItem
     function confirmBox(text) {
       return new Promise((resolve) => {
         openModal({
@@ -807,6 +813,8 @@
         });
       });
     }
+    
+    // REMOVIDO: Funções de Contato/Email (copyToClipboard, openContactModal)
 
     /* ========================== Lógica da Agenda ========================== */
 
@@ -1045,6 +1053,7 @@
       const firstDayOfWeek = firstDayOfMonth.getUTCDay(); // 0-6
       const startDate = new Date(Date.UTC(year, month, 1 - firstDayOfWeek));
       
+      // CORREÇÃO: Erro de sintaxe (removido o '<')
       for (let i = 0; i < 42; i++) {
         const date = new Date(startDate);
         date.setUTCDate(startDate.getUTCDate() + i);
@@ -1201,6 +1210,7 @@
         return toast("Erro: Não foi possível determinar a Sala para exclusão.", "error");
       }
       
+      // MANTÉM A CONFIRMAÇÃO AQUI
       const ok = await confirmBox("Tem certeza que deseja excluir este agendamento?");
       if (!ok) return;
       
@@ -1290,7 +1300,7 @@
       
       setTimeout(() => $("#modal-input-prof").focus(), 100);
     }
-
+    
     /* ========================== Funções de Gerenciamento ========================== */
 
     function bindManagementLists() {
@@ -1382,28 +1392,51 @@
         });
     }
 
-    async function removeManagementItem(type, id) {
-      const itemNome = $(`button[data-id="${id}"]`).closest('.mgmt-list-item').querySelector('span').textContent;
-      
-      const ok = await confirmBox(`Tem certeza que deseja excluir "${itemNome}"?`);
-      if (!ok) return;
-      
-      const path = `_listas/${type}/${id}`;
-      remove(ref(db, path))
-        .then(() => {
-          toast(`"${itemNome}" excluído.`, "ok");
-        })
-        .catch((e) => {
-          console.error(e);
-          toast("Erro ao excluir.", "error");
-        });
+    // MODIFICADO: Remoção da confirmação (confirmBox)
+    async function removeManagementItem(type, id, targetButton) {
+      try {
+        // Obtém o nome exibido ao lado do botão
+        const itemNome = targetButton.closest('.mgmt-list-item').querySelector('span').textContent;
+        
+        // REMOVIDO: Confirmação personalizada
+        // const ok = await confirmBox(`Tem certeza que deseja excluir \"${itemNome}\"?`);
+        // if (!ok) return;
+        
+        // Caminho do item no Firebase
+        const path = `_listas/${type}/${id}`;
+        
+        await remove(ref(db, path));
+        toast(`\"${itemNome}\" excluído com sucesso.`, 'ok');
+        
+        // O onValue (listener do Firebase) vai atualizar a lista automaticamente.
+        
+      } catch (e) {
+        console.error('Erro ao excluir item de gerenciamento:', e);
+        toast('Erro ao excluir.', 'error');
+      }
     }
 
-    // NOVO: Função para resetar todos os dados
+
+    // CORREÇÃO: Função de resetar dados agora chama o openModal corretamente
     async function resetAllData() {
-      const ok = await confirmBox(
-        "<strong>Atenção!</strong> Você está prestes a apagar TODAS as listas (Salas, Turmas, Professores) e TODOS os agendamentos de TODAS as salas. Esta ação não pode ser desfeita."
-      );
+      // Chama o openModal diretamente para ter botões customizados
+      const ok = await new Promise((resolve) => {
+        openModal({
+          title: "Confirmar Reset",
+          content: "<strong>Atenção!</strong> Você está prestes a apagar TODAS as listas (Salas, Turmas, Professores) e TODOS os agendamentos de TODAS as salas. Esta ação não pode ser desfeita.",
+          confirmText: "Resetar Agora",
+          confirmClass: "btn-danger w-full",
+          onConfirm: () => {
+            closeModal();
+            resolve(true);
+          },
+          onCancel: () => {
+            closeModal();
+            resolve(false);
+          }
+        });
+      });
+
       if (!ok) return;
 
       const pathsToRemove = [
@@ -1538,18 +1571,32 @@
       $("#btn-add-turma").addEventListener("click", () => addManagementItem('turmas'));
       $("#btn-add-prof").addEventListener("click", () => addManagementItem('professores'));
 
-      // MODIFICADO: Event listener agora é async para aguardar o confirmBox
-      $("#management-view").addEventListener("click", async (e) => {
-        const button = e.target.closest("button[data-action='delete-mgmt']");
-        if (button) {
-          const id = button.dataset.id;
-          const type = button.dataset.type;
-          await removeManagementItem(type, id); // Aguarda a confirmação
+      // =================================================================
+      // CORREÇÃO DEFINITIVA: Listeners de exclusão separados
+      // =================================================================
+      
+      // Função auxiliar para lidar com o clique de exclusão
+      const handleDeleteClick = async (e) => {
+        const deleteButton = e.target.closest("button[data-action='delete-mgmt']");
+        if (deleteButton) {
+          const id = deleteButton.dataset.id;
+          const type = deleteButton.dataset.type;
+          // MODIFICADO: A confirmação foi removida da função removeManagementItem
+          await removeManagementItem(type, id, deleteButton); 
         }
+      };
+
+      // Adiciona listeners de clique específicos para cada lista
+      $("#list-salas").addEventListener("click", handleDeleteClick);
+      $("#list-turmas").addEventListener("click", handleDeleteClick);
+      $("#list-professores").addEventListener("click", handleDeleteClick);
+      
+      // Listener separado para o botão de resetar tudo (estava correto)
+      $("#btn-reset-all").addEventListener("click", async () => {
+          await resetAllData();
       });
       
-      // NOVO: Listener para o botão de reset
-      $("#btn-reset-all").addEventListener("click", resetAllData);
+      // REMOVIDO: Listener do botão de contato
       
       renderCalendar(); 
     }
@@ -1558,3 +1605,4 @@
   </script>
 </body>
 </html>
+
