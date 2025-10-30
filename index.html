@@ -1,0 +1,1560 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Agenda de Laboratórios</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;600;700;800&display=swap" rel="stylesheet">
+
+  <!-- MODIFICADO: Força o dark mode e remove lógica do localStorage -->
+  <script>
+    (function() {
+      try {
+        document.documentElement.classList.add("dark");
+      } catch(e) {}
+      document.documentElement.style.opacity = "0";
+    })();
+  </script>
+
+  <!-- Tailwind CDN --><script src="https://cdn.tailwindcss.com"></script>
+  <script>
+    tailwind.config = {
+      darkMode: 'class',
+      theme: {
+        extend: {
+          fontFamily: { inter: ['Inter', 'system-ui', 'ui-sans-serif']},
+          colors: {
+            brand: {
+              DEFAULT: '#2563eb',
+              dark: '#1d4ed8'
+            }
+          },
+          boxShadow: {
+            soft: '0 10px 25px -10px rgba(0,0,0,.25)'
+          }
+        }
+      }
+    }
+  </script>
+
+  <!-- Estilos (do layout original + novos estilos) --><style>
+    :root{--border:rgba(148,163,184,.35)}
+    *{outline:0}
+    .input{border:1px solid var(--border);border-radius:12px;padding:.65rem .8rem;background:#fff;color:#0f17a2;transition:all .2s}
+    .dark .input{background:#0b1220;color:#f8fafc;border-color:rgba(148,163,184,.25)}
+    .input:focus{box-shadow:0 0 0 3px rgba(37,99,235,.2);border-color:#2563eb}
+    .btn-primary{background:#2563eb;color:#fff;border-radius:12px;padding:.65rem .95rem;font-weight:800;transition:transform .05s ease;box-shadow:0 10px 25px -10px rgba(37,99,235,.6)}
+    .btn-primary:hover{background:#1d4ed8}
+    .btn-primary:active{transform:translateY(1px)}
+    .btn-secondary{background:#e2e8f0;border:1px solid var(--border);border-radius:12px;padding:.6rem .9rem;font-weight:700}
+    .dark .btn-secondary{background:#0b1220}
+    .btn-danger{background:#ef4444;color:#fff;border-radius:12px;padding:.6rem .9rem;font-weight:800}
+    .btn-danger:hover{background:#dc2626}
+    .btn-ghost{border:1px solid var(--border);border-radius:12px;padding:.5rem .8rem;font-weight:700;background:transparent}
+    .btn-icon{border:1px solid var(--border);border-radius:12px;padding: .5rem; font-weight:700;background:transparent;line-height:1; min-width: 38px; text-align: center;}
+    .btn-icon:hover, .btn-ghost:hover { background-color: rgba(148,163,184,.1); }
+    .dark .btn-icon:hover, .dark .btn-ghost:hover { background-color: rgba(148,163,184,.2); }
+    
+    .card{border:1px solid var(--border);background:#fff;border-radius:16px;padding:1rem 1rem 1.25rem 1rem;box-shadow:0 10px 25px -12px rgba(0,0,0,.25)}
+    .dark .card{background:#0b1220}
+    .section-title{font-weight:800}
+    .badge{background:#fde68a;color:#78350f;border-radius:9999px;padding:.1rem .55rem;font-size:.75rem;font-weight:800}
+    .field>label{display:block;font-size:.85rem;opacity:.8;margin-bottom:.25rem}
+    #toast{background:#111827;color:#fff;border-radius:9999px;padding:.6rem 1rem;font-weight:800;box-shadow:0 10px 25px -12px rgba(0,0,0,.35); z-index: 60;}
+    .hidden{display:none}
+
+    /* Novos estilos do Calendário */
+    .calendar-header { display: flex; align-items: center; justify-content: space-between; padding: 0.5rem 0.25rem; }
+    
+    .calendar-grid { display: grid; grid-template-columns: repeat(7, 1fr); gap: 4px; }
+    .calendar-day-head { font-size: 0.75rem; font-weight: 800; text-align: center; opacity: 0.6; }
+    .calendar-day { 
+      font-size: 0.8rem; 
+      font-weight: 700; 
+      text-align: center; 
+      border-radius: 8px; 
+      height: 36px; 
+      display: flex; 
+      align-items: center; 
+      justify-content: center; 
+      border: 1px solid transparent; 
+      cursor: default; 
+      position: relative;
+      transition: background-color 0.2s;
+    }
+    .calendar-day.other-month { opacity: 0.3; } 
+    .calendar-day.today { border-color: #2563eb; color: #2563eb; }
+    .dark .calendar-day.today { border-color: #3b82f6; color: #3b82f6; }
+    
+    /* CORREÇÃO: Ordem de prioridade CSS (P4 < P3 < P2 < P1) */
+    
+    /* Prioridade 4: Semana Selecionada (Azul) */
+    .calendar-day.selected {
+      background-color: #bfdbfe; /* blue-200 */
+      color: #1e3a8a; /* blue-900 */
+      border-color: #3b82f6; /* blue-500 */
+    }
+    .dark .calendar-day.selected {
+      background-color: #1e3a8a;
+      color: #bfdbfe;
+      border-color: #60a5fa;
+    }
+
+    /* Prioridade 3: Semana Pendente (Amarelo) */
+    .calendar-day.scheduled { 
+      background-color: #fef9c3; /* yellow-100 */
+      color: #713f12; /* yellow-900 */
+      border-color: #fde047; /* yellow-400 */
+    }
+    .dark .calendar-day.scheduled { 
+      background-color: #422006; 
+      color: #fef08a; 
+      border-color: #78350f; 
+    }
+    
+    /* Prioridade 2: Semana OK (Verde) */
+    .calendar-day.completed { 
+      background-color: #dcfce7; /* green-100 */
+      color: #14532d; /* green-900 */
+      border-color: #4ade80; /* green-400 */
+    }
+    /* MODIFICADO: Tom de verde mais claro no dark mode */
+    .dark .calendar-day.completed { 
+      background-color: #065f46; /* ANTES: #052e1a (green-950), AGORA: green-800 */
+      color: #bbf7d0; 
+      border-color: #047857; /* ANTES: #166534 (green-800), AGORA: green-700 */
+    }
+
+    /* Prioridade 1: Dia Específico Pendente (Vermelho) */
+    .calendar-day.day-pending {
+      background-color: #fee2e2; /* red-100 */
+      color: #991b1b; /* red-900 */
+      border-color: #f87171; /* red-400 */
+      font-weight: 900;
+      z-index: 10; /* Garante que fique por cima da cor da semana */
+    }
+    .dark .calendar-day.day-pending {
+      background-color: #450a0a; 
+      color: #fca5a5; 
+      border-color: #b91c1c;
+    }
+
+    /* Adiciona cursor e hover para dias clicáveis */
+    .calendar-day {
+      cursor: pointer;
+    }
+    .calendar-day:hover {
+      background-color: rgba(148,163,184,.1);
+    }
+    .dark .calendar-day:hover {
+      background-color: rgba(148,163,184,.2);
+    }
+    
+    /* Hovers com prioridade */
+    .calendar-day.scheduled:hover { background-color: #fef08a; }
+    .calendar-day.completed:hover { background-color: #bbf7d0; }
+    .dark .calendar-day.scheduled:hover { background-color: #78350f; }
+    .dark .calendar-day.completed:hover { background-color: #166534; }
+    .calendar-day.selected:hover { background-color: #93c5fd; }
+    .dark .calendar-day.selected:hover { background-color: #2563eb; }
+    .calendar-day.day-pending:hover { background-color: #fca5a5; }
+    .dark .calendar-day.day-pending:hover { background-color: #b91c1c; }
+    
+    .calendar-day.other-month:hover {
+       background-color: rgba(148,163,184,.05);
+    }
+    .dark .calendar-day.other-month:hover {
+       background-color: rgba(148,163,184,.1);
+    }
+
+    .calendar-day .week-number {
+      position: absolute;
+      top: 1px;
+      left: 2px;
+      font-size: 0.6rem;
+      font-weight: 800;
+      color: #64748b; /* slate-500 */
+    }
+    .dark .calendar-day .week-number { color: #475569; /* slate-600 */ }
+    
+    /* Estilos da Planilha (Tabela) */
+    .spreadsheet-table {
+      width: 100%;
+      border-collapse: collapse;
+    }
+    .spreadsheet-table th, .spreadsheet-table td {
+      border: 1px solid var(--border);
+      padding: 0.65rem 0.8rem;
+      text-align: left;
+      font-size: 0.9rem;
+    }
+    .spreadsheet-table th {
+      background-color: #f1f5f9; /* slate-100 */
+      font-weight: 800;
+    }
+    .dark .spreadsheet-table th {
+      background-color: #1e293b; /* slate-800 */
+    }
+    
+    /* Estilo para tabela de estatísticas (e detalhes do dia) */
+    .stats-table {
+      width: 100%;
+      border-collapse: collapse;
+    }
+    .stats-table th, .stats-table td {
+      border: 1px solid var(--border);
+      padding: 0.5rem 0.75rem;
+      font-size: 0.9rem;
+    }
+    .stats-table th {
+      background-color: #f8fafc; /* slate-50 */
+      font-weight: 700;
+      text-align: left;
+    }
+    .dark .stats-table th {
+      background-color: #1e293b; /* slate-800 */
+    }
+    .stats-table td:nth-child(2), .stats-table td:nth-child(3) {
+      text-align: center;
+    }
+    .stats-table td:last-child:not(:nth-child(2)):not(:nth-child(3)) {
+      font-weight: 700;
+      text-align: center;
+      min-width: 50px;
+    }
+
+
+    .status-ok {
+      background-color: #dcfce7; /* green-100 */
+      color: #14532d; /* green-900 */
+      font-weight: 700;
+    }
+    .dark .status-ok {
+      background-color: #052e1a; 
+      color: #bbf7d0; 
+    }
+    .status-pendente {
+      background-color: #fef9c3; /* yellow-100 */
+      color: #713f12; /* yellow-900 */
+      font-weight: 700;
+    }
+    .dark .status-pendente {
+      background-color: #422006; 
+      color: #fef08a; 
+    }
+    
+    /* NOVO: Estilo para Dia Pendente na tabela de detalhes */
+    .status-vermelho {
+      background-color: #fee2e2; /* red-100 */
+      color: #991b1b; /* red-900 */
+      font-weight: 700;
+    }
+    .dark .status-vermelho {
+      background-color: #450a0a; 
+      color: #fca5a5; 
+    }
+    
+    .table-select {
+      background-color: transparent;
+      border: none;
+      padding: 0.25rem;
+      border-radius: 6px;
+      font-weight: 700;
+      -webkit-appearance: none;
+      -moz-appearance: none;
+      appearance: none;
+      cursor: pointer;
+    }
+    .status-ok .table-select { color: #14532d; }
+    .status-pendente .table-select { color: #713f12; }
+    .dark .status-ok .table-select { color: #bbf7d0; }
+    .dark .status-pendente .table-select { color: #fef08a; }
+
+    .mgmt-list {
+      max-height: 200px;
+      overflow-y: auto;
+      border: 1px solid var(--border);
+      border-radius: 12px;
+      padding: 0.5rem;
+    }
+    .mgmt-list-item {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      padding: 0.5rem 0.75rem;
+      border-radius: 8px;
+    }
+    .mgmt-list-item:nth-child(even) {
+      background-color: #f8fafc; /* slate-50 */
+    }
+    .dark .mgmt-list-item:nth-child(even) {
+      background-color: #1e293b; /* slate-800 */
+    }
+    
+    .mgmt-list-item {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      padding: 0.65rem 0.8rem; 
+      border-radius: 12px; 
+      background-color: #f1f5f9; 
+    }
+    .dark .mgmt-list-item {
+      background-color: #1e293b; 
+    }
+    .mgmt-list-item:nth-child(even) { background-color: #f1f5f9; }
+    .dark .mgmt-list-item:nth-child(even) { background-color: #1e293b; }
+    
+    .mgmt-list-item .btn-icon {
+        background-color: #fef2f2; 
+        color: #dc2626; 
+        border-color: #fee2e2; 
+    }
+    .dark .mgmt-list-item .btn-icon {
+        background-color: #3f1212; 
+        color: #f87171; 
+        border-color: #450a0a; 
+    }
+    
+    .mgmt-form {
+      display: flex;
+      gap: 0.5rem;
+    }
+    .mgmt-form .input {
+      flex: 1 1 auto; 
+      min-width: 0; 
+    }
+    .mgmt-form .btn-primary {
+      flex-shrink: 0; 
+    }
+    
+    #modal-overlay.flex {
+      display: flex;
+    }
+    #modal-overlay {
+      background-color: rgba(0,0,0,0.6);
+      backdrop-filter: blur(4px);
+    }
+    
+  </style>
+</head>
+<body class="font-inter bg-slate-100 dark:bg-slate-900 text-slate-800 dark:text-slate-100 transition-colors duration-300">
+
+  <!-- ========================== TELA DE SELEÇÃO ========================== -->
+  <div id="selection-view" class="fixed inset-0 z-50 flex items-center justify-center bg-slate-100 dark:bg-slate-900 p-4">
+    <div class="card w-full max-w-md">
+      <h2 class="text-xl font-extrabold text-center mb-6">Selecione a Visualização</h2>
+      
+      <div class="space-y-4">
+        <div class="field">
+          <label for="select-sala" class="font-bold">Sala</label>
+          <select id="select-sala" class="input w-full">
+            <option value="">Selecione uma Sala...</option>
+            <!-- Populado pelo JS -->
+          </select>
+        </div>
+      </div>
+      
+      <button id="btn-selecionar" class="btn-primary w-full mt-6 text-lg p-3">Selecionar</button>
+      
+      <button id="btn-open-management" class="btn-secondary w-full mt-3">Gerenciar Opções</button>
+    </div>
+  </div>
+
+  <!-- ========================== TELA DE GERENCIAMENTO ========================== -->
+  <div id="management-view" class="fixed inset-0 z-50 hidden flex-col items-center justify-center bg-slate-100 dark:bg-slate-900 p-4">
+    <div class="card w-full max-w-4xl">
+      <div class="flex justify-between items-center mb-6">
+        <h2 class="text-xl font-extrabold text-center">Gerenciar Opções</h2>
+        <button id="btn-mgmt-voltar" class="btn-ghost">Voltar</button>
+      </div>
+
+      <div class="grid md:grid-cols-3 gap-6">
+        
+        <!-- Gerenciar Salas -->
+        <div class="space-y-3">
+          <h3 class="text-lg font-bold">Salas</h3>
+          <div class="mgmt-form">
+            <input id="input-salas" class="input" placeholder="Ex: Lab_101">
+            <button id="btn-add-sala" class="btn-primary">Add</button>
+          </div>
+          <ul id="list-salas" class="mgmt-list space-y-1">
+            <li class="mgmt-list-item opacity-50">Carregando...</li>
+          </ul>
+        </div>
+
+        <!-- Gerenciar Turmas -->
+        <div class="space-y-3">
+          <h3 class="text-lg font-bold">Turmas</h3>
+          <div class="mgmt-form">
+            <input id="input-turmas" class="input" placeholder="Ex: Me-76">
+            <button id="btn-add-turma" class="btn-primary">Add</button>
+          </div>
+          <ul id="list-turmas" class="mgmt-list space-y-1">
+            <!-- Populado pelo JS -->
+          </ul>
+        </div>
+
+        <!-- Gerenciar Professores -->
+        <div class="space-y-3">
+          <h3 class="text-lg font-bold">Professores</h3>
+          <div class="mgmt-form">
+            <input id="input-professores" class="input" placeholder="Ex: Vitor">
+            <button id="btn-add-prof" class="btn-primary">Add</button>
+          </div>
+          <ul id="list-professores" class="mgmt-list space-y-1">
+            <!-- Populado pelo JS -->
+          </ul>
+        </div>
+
+      </div>
+      
+      <!-- NOVO: Botão Reset -->
+      <div class="mt-8 border-t border-red-500/30 pt-6">
+        <h3 class="text-lg font-bold text-red-500">Zona de Perigo</h3>
+        <p class="text-sm opacity-70 mb-3">Esta ação é irreversível e apagará todas as listas e agendamentos.</p>
+        <button id="btn-reset-all" class="btn-danger w-full max-w-xs">Resetar Todos os Dados</button>
+      </div>
+      
+    </div>
+  </div>
+
+
+  <!-- ========================== APP PRINCIPAL (Agenda) ========================== -->
+  <div id="app" class="opacity-0 hidden">
+    <header class="sticky top-0 z-40 backdrop-blur bg-white/70 dark:bg-slate-900/70 border-b border-slate-200/60 dark:border-slate-700/60">
+      <div class="max-w-full mx-auto px-4 lg:px-8 py-3 flex items-center justify-between">
+        <div class="flex items-center gap-3">
+          <h1 class="text-lg sm:text-2xl font-black">Agenda de Laboratórios</h1>
+          <span id="header-selection" class="hidden sm:inline text-lg sm:text-2xl font-black text-brand-dark dark:text-blue-400"></span>
+        </div>
+        <div class="flex items-center gap-2">
+          <span id="clock" class="hidden sm:inline font-mono text-sm opacity-80"></span>
+          <button id="btn-change-filter" class="btn-ghost">Trocar Filtro</button>
+        </div>
+      </div>
+    </header>
+
+    <!-- NOVO LAYOUT: Colunas 50/50 -->
+    <main class="max-w-full mx-auto px-4 lg:px-8 py-6 grid lg:grid-cols-2 gap-6">
+      
+      <!-- Coluna Esquerda (Calendário, Add Agendamento) -->
+      <section class="space-y-6 lg:sticky lg:top-20 h-fit">
+        
+        <!-- Sidebar (Calendário) -->
+        <aside class="card">
+          <div class="calendar-header">
+            <button id="cal-prev" class="btn-icon">◄</button>
+            <h3 id="cal-month-year" class="text-base font-extrabold text-center"></h3>
+            <button id="cal-next" class="btn-icon">►</button>
+          </div>
+          <div class="calendar-grid mt-2">
+            <!-- Cabeçalho (Dom, Seg, Ter...) -->
+            <div class="calendar-day-head">Dom</div>
+            <div class="calendar-day-head">Seg</div>
+            <div class="calendar-day-head">Ter</div>
+            <div class="calendar-day-head">Qua</div>
+            <div class="calendar-day-head">Qui</div>
+            <div class="calendar-day-head">Sex</div>
+            <div class="calendar-day-head">Sáb</div>
+          </div>
+          <div id="cal-body" class="calendar-grid mt-1">
+            <!-- Preenchido pelo JS -->
+          </div>
+
+          <!-- Legenda -->
+          <div class="mt-4 space-y-2">
+            <!-- NOVO: Legenda Vermelha para Dia Pendente -->
+            <div class="flex items-center gap-2">
+              <div class="w-4 h-4 rounded-full bg-red-100 dark:bg-red-900/40 border border-red-400"></div>
+              <span class="text-xs font-medium">Dia Pendente</span>
+            </div>
+            <div class="flex items-center gap-2">
+              <div class="w-4 h-4 rounded-full bg-yellow-100 dark:bg-yellow-900/40 border border-yellow-400"></div>
+              <span class="text-xs font-medium">Semana Pendente</span>
+            </div>
+            <div class="flex items-center gap-2">
+              <div class="w-4 h-4 rounded-full bg-green-100 dark:bg-green-900/40 border border-green-400"></div>
+              <span class="text-xs font-medium">Semana (Ok)</span>
+            </div>
+            <div class="flex items-center gap-2">
+              <div class="w-4 h-4 rounded-full border-2 border-brand-dark dark:border-blue-400"></div>
+              <span class="text-xs font-medium">Hoje</span>
+            </div>
+          </div>
+        </aside>
+
+        <!-- Formulário Card (Movido para a esquerda) -->
+        <div class="card">
+          <h2 class="text-xl font-bold mb-4">Adicionar Agendamento</h2>
+          <div class="grid grid-cols-1 gap-4">
+            <div class="field">
+              <label for="form-dia">Dia</label>
+              <input id="form-dia" type="date" class="input">
+            </div>
+            <div class="field">
+              <label for="form-sala">Sala</label>
+              <select id="form-sala" class="input">
+                <option value="">Selecione...</option>
+              </select>
+            </div>
+             <div class="field">
+              <label for="form-turma">Turma</label>
+              <select id="form-turma" class="input">
+                <option value="">Selecione...</option>
+              </select>
+            </div>
+            <div class="field">
+              <label for="form-prof">Professor</label>
+              <select id="form-prof" class="input">
+                <option value="">Selecione...</option>
+              </select>
+            </div>
+            <!-- MODIFICADO: Campo 5S oculto, sempre pendente -->
+            <div class="field hidden"> 
+              <label for="form-status">Status (5S)</label>
+              <select id="form-status" class="input">
+                <option value="pendente" selected>Pendente</option>
+                <!-- Opção "Ok" removida -->
+              </select>
+            </div>
+            <div class="flex justify-end">
+              <button id="btn-add-agenda" class="btn-primary w-full">Salvar Agendamento</button>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <!-- Coluna Direita (Detalhes, Agendamentos e Estatísticas) -->
+      <aside class="space-y-6">
+        
+        <!-- MODIFICADO: Detalhes da Semana (Movido para a direita) -->
+        <div id="day-details-view" class="card">
+          <h3 class="text-lg font-bold mb-2">Detalhes da Semana</h3>
+          <h4 id="day-details-date" class="font-bold text-brand-dark dark:text-blue-400 mb-3 text-sm">Nenhuma semana selecionada</h4>
+          <div class="overflow-y-auto max-h-48"> <!-- Altura máxima aumentada -->
+            <table class="stats-table">
+              <thead>
+                <tr>
+                  <!-- NOVO: Coluna Dia adicionada -->
+                  <th>Dia</th>
+                  <th>Turma</th>
+                  <th>Status</th>
+                </tr>
+              </thead>
+              <tbody id="day-details-body">
+                <tr><td colspan="3" class="text-center p-4 opacity-50 text-sm">Clique em um dia no calendário...</td></tr>
+              </tbody>
+            </table>
+          </div>
+        </div>
+        
+        <!-- Planilha Card -->
+        <div class="card">
+          <h2 class="text-xl font-bold mb-4">Agendamentos do Mês</h2>
+          <div class="overflow-x-auto">
+            <table class="spreadsheet-table">
+              <thead>
+                <tr>
+                  <th>Semana</th>
+                  <th>Dia</th> <!-- MODIFICADO: Será apenas o número -->
+                  <th id="dynamic-col-header">Turma</th>
+                  <th id="dynamic-col-header-2">Professor</th>
+                  <th>5S Ok?</th>
+                  <th>Ações</th>
+                </tr>
+              </thead>
+              <tbody id="agenda-table-body">
+                <tr><td colspan="6" class="text-center p-6 opacity-60">Nenhum agendamento encontrado.</td></tr>
+              </tbody>
+            </table>
+          </div>
+        </div>
+        
+        <!-- Card de Estatísticas (Movido para a direita) -->
+        <div id="stats-view" class="card">
+          <h2 class="text-xl font-bold mb-4">Estatísticas do Mês (5S Ok)</h2>
+          <p class="text-sm opacity-70 mb-4">Contagem de status "Ok" para o mês e sala selecionados.</p>
+          <div class="grid md:grid-cols-2 gap-6">
+            
+            <!-- Estatísticas por Turma -->
+            <div>
+              <h3 class="text-lg font-bold mb-2">Contagem por Turma</h3>
+              <div class="overflow-x-auto">
+                <table class="stats-table">
+                  <thead>
+                    <tr>
+                      <th>Turma</th>
+                      <th>Qtd. "Ok"</th>
+                    </tr>
+                  </thead>
+                  <tbody id="stats-turmas-body">
+                    <tr><td colspan="2" class="text-center p-4 opacity-60">Nenhum dado "Ok".</td></tr>
+                  </tbody>
+                </table>
+              </div>
+            </div>
+
+            <!-- Estatísticas por Professor -->
+            <div>
+              <h3 class="text-lg font-bold mb-2">Contagem por Professor</h3>
+              <div class="overflow-x-auto">
+                <table class="stats-table">
+                  <thead>
+                    <tr>
+                      <th>Professor</th>
+                      <th>Qtd. "Ok"</th>
+                    </tr>
+                  </thead>
+                  <tbody id="stats-prof-body">
+                     <tr><td colspan="2" class="text-center p-4 opacity-60">Nenhum dado "Ok".</td></tr>
+                  </tbody>
+                </table>
+              </div>
+            </div>
+
+          </div>
+        </div>
+        
+      </aside>
+
+    </main>
+
+    <!-- Toast --><div id="toast" class="fixed bottom-4 right-4 hidden"></div>
+
+    <!-- REMOVIDO: Floating theme button -->
+    
+    <!-- NOVO: MODAL GENÉRICO -->
+    <div id="modal-overlay" class="fixed inset-0 z-50 hidden items-center justify-center bg-black/60 p-4">
+      <div class="card w-full max-w-md">
+        <div class="flex justify-between items-center mb-4">
+          <h2 id="modal-title" class="text-xl font-extrabold">Confirmar</h2>
+          <button id="modal-close" class="btn-icon">✖</button>
+        </div>
+        <div id="modal-content" class="text-sm opacity-90">
+          <!-- Conteúdo dinâmico -->
+        </div>
+        <div class="mt-6 flex gap-3">
+          <button id="modal-cancel" class="btn-secondary w-full">Cancelar</button>
+          <button id="modal-confirm" class="btn-primary w-full">Confirmar</button>
+        </div>
+      </div>
+    </div>
+
+  </div>
+
+  <script>
+    // Reveal after JS initialization starts
+    window.addEventListener('load', () => {
+      document.documentElement.style.opacity = "1";
+    });
+  </script>
+
+  <!-- Firebase v11 (Modular) -->
+  <script type="module">
+    import { initializeApp } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-app.js";
+    import { getDatabase, ref, set, onValue, push, update, remove, off } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-database.js";
+
+    /* ========================== Firebase init ========================== */
+    const firebaseConfig = {
+      apiKey: "AIzaSyDbHyQtUdLXGuFkPmKXIyCKbGw6CwyNEAs",
+      authDomain: "fir-salas-faa92.firebaseapp.com",
+      databaseURL: "https://fir-salas-faa92-default-rtdb.firebaseio.com", 
+      projectId: "fir-salas-faa92",
+      storageBucket: "fir-salas-faa92.firebasestorage.app",
+      messagingSenderId: "698543785309",
+      appId: "1:698543785309:web:cc834b9c1753f0849254b4"
+    };
+
+    let app, db;
+    try {
+      app = initializeApp(firebaseConfig);
+      db = getDatabase(app);
+      console.log("Firebase RTDB Conectado!");
+    } catch (e) {
+      console.error("Erro ao inicializar o Firebase:", e);
+      toast("Falha ao conectar ao Firebase!", "error");
+    }
+    
+    /* ========================== State ========================== */
+    const state = {
+      // themeMode: "dark", // Removido, dark é forçado
+      currentView: "selection", 
+      selectionSala: null, 
+      agendamentos: [], 
+      currentFirebaseRef: null, 
+      timers: { clock: null },
+      calendar: {
+        year: new Date().getFullYear(),
+        month: new Date().getMonth(), 
+        selectedWeek: null, 
+        clickedDayISO: null, // Armazena o dia exato clicado
+      }
+    };
+
+    /* ========================== Utils (do layout original) ========================== */
+    const $ = (sel) => document.querySelector(sel);
+    const $$ = (sel) => [...document.querySelectorAll(sel)];
+    
+    function toast(msg, kind="info"){
+      const box = $("#toast");
+      box.textContent = msg;
+      box.classList.remove("hidden");
+      box.style.background = kind==="error" ? "#ef4444" : (kind==="ok" ? "#065f46" : "#111827");
+      setTimeout(()=>box.classList.add("hidden"), 3000);
+    }
+    
+    // CORREÇÃO: Função de semana modificada para bater com a expectativa (Semana 1 = 1 de Jan)
+    function getWeekNumber(d) {
+        // d é a data (objeto Date)
+        // Precisamos tratar como UTC para evitar problemas de fuso
+        const date = new Date(Date.UTC(d.getFullYear(), d.getMonth(), d.getDate()));
+        // Encontra o primeiro dia do ano
+        const yearStart = new Date(Date.UTC(date.getUTCFullYear(), 0, 1));
+        
+        // Calcula a diferença em dias
+        const diff = date - yearStart;
+        // Adiciona 1 (pois 1 de Jan é o dia 1)
+        const dayOfYear = (diff / 86400000) + 1;
+        
+        // Calcula a semana (baseado no dia 1)
+        // Adiciona o dia da semana do primeiro dia do ano para alinhar
+        const startDay = yearStart.getUTCDay(); // 0=Dom, 1=Seg...
+        const weekNo = Math.ceil((dayOfYear + startDay) / 7);
+        
+        return `${date.getUTCFullYear()}-W${String(weekNo).padStart(2, '0')}`;
+    }
+    
+    const isoDate = (d) => d.toISOString().split('T')[0];
+    const today = new Date();
+    const todayISO = isoDate(today);
+
+    const formatKey = (str) => (str || "").trim().replace(/ /g, "_");
+    const formatDisplay = (str) => (str || "").trim().replace(/_/g, " ");
+
+    /* ========================== Theme (REMOVIDO) ========================== */
+    // Funções applyTheme e initTheme removidas.
+    
+    /* ========================== Clock (do layout original) ========================== */
+    function startClock(){
+      if (state.timers.clock) clearInterval(state.timers.clock);
+      state.timers.clock = setInterval(()=>{
+        $("#clock").textContent = new Date().toLocaleTimeString("pt-BR", {hour12:false});
+      }, 1000);
+    }
+    
+    /* ========================== Modal Genérico (NOVO) ========================== */
+    const $modal = {
+      overlay: $("#modal-overlay"),
+      title: $("#modal-title"),
+      content: $("#modal-content"),
+      confirmBtn: $("#modal-confirm"),
+      cancelBtn: $("#modal-cancel"),
+      closeBtn: $("#modal-close"),
+    };
+
+    let modalConfirmCallback = () => {};
+    let modalCancelCallback = () => {};
+
+    function openModal(config) {
+      $modal.title.textContent = config.title || "Confirmar";
+      $modal.content.innerHTML = config.content || "";
+      $modal.confirmBtn.textContent = config.confirmText || "Confirmar";
+      $modal.cancelBtn.textContent = config.cancelText || "Cancelar";
+      
+      $modal.confirmBtn.className = config.confirmClass || "btn-primary w-full";
+      $modal.cancelBtn.className = config.cancelClass || "btn-secondary w-full";
+      
+      $modal.confirmBtn.classList.toggle('hidden', !!config.hideConfirm);
+      $modal.cancelBtn.classList.toggle('hidden', !!config.hideCancel);
+
+      modalConfirmCallback = config.onConfirm || closeModal;
+      modalCancelCallback = config.onCancel || closeModal;
+      
+      $modal.overlay.classList.remove("hidden");
+      $modal.overlay.classList.add("flex");
+    }
+
+    function closeModal() {
+      $modal.overlay.classList.add("hidden");
+      $modal.overlay.classList.remove("flex");
+      $modal.content.innerHTML = "";
+      modalConfirmCallback = () => {};
+      modalCancelCallback = () => {};
+    }
+
+    $modal.confirmBtn.addEventListener("click", () => modalConfirmCallback());
+    $modal.cancelBtn.addEventListener("click", () => modalCancelCallback());
+    $modal.closeBtn.addEventListener("click", () => modalCancelCallback());
+
+    function confirmBox(text) {
+      return new Promise((resolve) => {
+        openModal({
+          title: "Confirmar Ação",
+          content: `<p>${text}</p>`,
+          confirmText: "Excluir",
+          confirmClass: "btn-danger w-full", 
+          onConfirm: () => {
+            closeModal();
+            resolve(true);
+          },
+          onCancel: () => {
+            closeModal();
+            resolve(false);
+          }
+        });
+      });
+    }
+
+    /* ========================== Lógica da Agenda ========================== */
+
+    function showView(viewName) {
+      state.currentView = viewName;
+      
+      $("#selection-view").classList.add("hidden");
+      $("#app").classList.add("hidden");
+      $("#management-view").classList.add("hidden");
+      
+      if (viewName === 'agenda') {
+        $("#app").classList.remove("hidden");
+        $("#app").classList.remove("opacity-0");
+      
+      } else if (viewName === 'management') {
+        $("#management-view").classList.remove("hidden");
+        $("#management-view").classList.add("flex"); 
+
+      } else { // 'selection'
+        $("#selection-view").classList.remove("hidden");
+        $("#selection-view").classList.add("flex");
+        
+        if (state.currentFirebaseRef) {
+          off(state.currentFirebaseRef); 
+          state.currentFirebaseRef = null;
+        }
+        
+        $("#form-sala").value = "";
+        $("#form-sala").disabled = false;
+        $("#form-turma").value = "";
+        $("#form-turma").disabled = false;
+        $("#form-prof").value = "";
+        $("#form-prof").disabled = false;
+      }
+    }
+
+    function selectFilter(sala) {
+      if (!sala) return;
+      
+      state.selectionSala = sala;
+      const dbPath = `labs/${sala}/agendamentos`;
+        
+      $("#dynamic-col-header").textContent = "Turma";
+      $("#dynamic-col-header-2").textContent = "Professor";
+      
+      $("#form-sala").value = sala;
+      $("#form-sala").disabled = true;
+      $("#form-turma").disabled = false;
+      $("#form-prof").disabled = false;
+
+      $("#header-selection").textContent = `: ${formatDisplay(sala)}`;
+
+      state.agendamentos = [];
+      renderTable(); 
+      renderCalendar();
+      renderStats(); 
+      clearDayDetails(); 
+      
+      if (state.currentFirebaseRef) {
+        off(state.currentFirebaseRef);
+      }
+      
+      console.log(`Ouvindo Firebase em: ${dbPath}`);
+      state.currentFirebaseRef = ref(db, dbPath);
+      
+      onValue(state.currentFirebaseRef, (snapshot) => {
+        const data = snapshot.val() || {};
+        state.agendamentos = Object.entries(data).map(([id, value]) => ({
+          id,
+          ...value
+        }));
+
+        console.log("Dados recebidos:", state.agendamentos);
+        renderTable(); 
+        renderCalendar();
+        renderStats();
+        
+        if (state.calendar.selectedWeek) {
+          updateWeekDetailsPanel(state.calendar.selectedWeek);
+        }
+        
+      }, (error) => {
+        console.error("Erro ao buscar dados do Firebase:", error);
+        toast("Erro ao carregar dados.", "error");
+      });
+
+      showView('agenda');
+    }
+
+    function renderTable() {
+      const tbody = $("#agenda-table-body");
+      
+      const agendamentosDoMes = state.agendamentos.filter(a => {
+        const d = new Date(a.dia + 'T12:00:00Z');
+        return d.getUTCFullYear() === state.calendar.year && 
+               d.getUTCMonth() === state.calendar.month;
+      });
+      
+      if (agendamentosDoMes.length === 0) {
+        tbody.innerHTML = `<tr><td colspan="6" class="text-center p-6 opacity-60">Nenhum agendamento para este mês.</td></tr>`;
+        return;
+      }
+
+      const sorted = agendamentosDoMes.sort((a, b) => new Date(a.dia) - new Date(b.dia));
+      tbody.innerHTML = "";
+      
+      for (const item of sorted) {
+        const tr = document.createElement("tr");
+        const diaDate = new Date(`${item.dia}T12:00:00Z`); // Usa UTC
+        const semana = getWeekNumber(diaDate).split('-W')[1]; 
+        
+        const diaFormatado = diaDate.getUTCDate(); 
+        
+        const col1 = formatDisplay(item.turma);
+        const col2 = formatDisplay(item.prof);
+        
+        const statusClass = item.status === 'ok' ? 'status-ok' : 'status-pendente';
+        
+        tr.innerHTML = `
+          <td>${semana}</td>
+          <td>${diaFormatado}</td>
+          <td>${col1 || 'N/A'}</td>
+          <td>${col2 || 'N/A'}</td>
+          <td class="${statusClass}">
+            <select class="table-select" data-action="status-change" data-id="${item.id}">
+              <option value="pendente" ${item.status === 'pendente' ? 'selected' : ''}>Pendente</option>
+              <option value="ok" ${item.status === 'ok' ? 'selected' : ''}>Ok</option>
+            </select>
+          </td>
+          <td class="flex gap-1">
+            <button data-action="edit" data-id="${item.id}" class="btn-icon text-blue-500" title="Editar">✏️</button>
+            <button data-action="delete" data-id="${item.id}" class="btn-icon text-red-500" title="Excluir">🗑</button>
+          </td>
+        `;
+        tbody.appendChild(tr);
+      }
+    }
+
+    function renderStats() {
+      const statsTurmasBody = $("#stats-turmas-body");
+      const statsProfBody = $("#stats-prof-body");
+
+      const turmaCounts = {};
+      const profCounts = {};
+      let totalOk = 0;
+      
+      const agendamentosDoMes = state.agendamentos.filter(a => {
+        const d = new Date(a.dia + 'T12:00:00Z');
+        return d.getUTCFullYear() === state.calendar.year && 
+               d.getUTCMonth() === state.calendar.month;
+      });
+
+      for (const item of agendamentosDoMes) { 
+        if (item.status === 'ok') {
+          totalOk++;
+          const turmaKey = item.turma || 'N/A';
+          const profKey = item.prof || 'N/A';
+
+          turmaCounts[turmaKey] = (turmaCounts[turmaKey] || 0) + 1;
+          profCounts[profKey] = (profCounts[profKey] || 0) + 1;
+        }
+      }
+
+      if (totalOk === 0) {
+        statsTurmasBody.innerHTML = `<tr><td colspan="2" class="text-center p-4 opacity-60">Nenhum dado "Ok" neste mês.</td></tr>`;
+        statsProfBody.innerHTML = `<tr><td colspan="2" class="text-center p-4 opacity-60">Nenhum dado "Ok" neste mês.</td></tr>`;
+        return;
+      }
+
+      statsTurmasBody.innerHTML = "";
+      Object.entries(turmaCounts).sort((a,b) => b[1] - a[1]).forEach(([turma, count]) => {
+        statsTurmasBody.innerHTML += `
+          <tr>
+            <td>${formatDisplay(turma)}</td>
+            <td>${count}</td>
+          </tr>
+        `;
+      });
+
+      statsProfBody.innerHTML = "";
+      Object.entries(profCounts).sort((a,b) => b[1] - a[1]).forEach(([prof, count]) => {
+        statsProfBody.innerHTML += `
+          <tr>
+            <td>${formatDisplay(prof)}</td>
+            <td>${count}</td>
+          </tr>
+        `;
+      });
+    }
+    
+    /**
+     * MODIFICADO: Lógica de prioridade de cor.
+     * 1. Dia Pendente (Vermelho)
+     * 2. Semana OK (Verde)
+     * 3. Semana Pendente (Amarelo)
+     * 4. Semana Selecionada (Azul)
+     */
+    function renderCalendar() {
+      const { year, month } = state.calendar;
+      const calBody = $("#cal-body");
+      calBody.innerHTML = "";
+      
+      const monthNames = ["Janeiro", "Fevereiro", "Março", "Abril", "Maio", "Junho", "Julho", "Agosto", "Setembro", "Outubro", "Novembro", "Dezembro"];
+      $("#cal-month-year").textContent = `${monthNames[month]} ${year}`;
+      
+      // Mapas para status da semana e dias pendentes
+      const weekStatus = new Map(); // "2025-W44" -> "ok" ou "pendente"
+      const pendingDays = new Set(); // "2025-10-27"
+      const agendamentosByDate = {}; 
+
+      for (const item of state.agendamentos) {
+        const itemDate = new Date(item.dia + 'T12:00:00Z');
+        const dayOfWeek = itemDate.getUTCDay();
+        const dateISO = item.dia;
+        
+        // Mapa de agendamentos por dia
+        if (!agendamentosByDate[dateISO]) agendamentosByDate[dateISO] = [];
+        agendamentosByDate[dateISO].push(item);
+
+        // Processa status apenas para dias úteis (Seg-Sex)
+        if (dayOfWeek > 0 && dayOfWeek < 6) { 
+          const weekNo = getWeekNumber(itemDate);
+          
+          if (item.status === 'pendente') {
+            weekStatus.set(weekNo, 'pendente'); // Pendente tem prioridade sobre OK na semana
+            pendingDays.add(dateISO); // Adiciona o dia específico
+          } else if (item.status === 'ok') {
+            if (!weekStatus.has(weekNo)) { // Só define como OK se não estiver pendente
+              weekStatus.set(weekNo, 'ok');
+            }
+          }
+        }
+      }
+      
+      const firstDayOfMonth = new Date(Date.UTC(year, month, 1));
+      const firstDayOfWeek = firstDayOfMonth.getUTCDay(); // 0-6
+      const startDate = new Date(Date.UTC(year, month, 1 - firstDayOfWeek));
+      
+      for (let i = 0; i < 42; i++) {
+        const date = new Date(startDate);
+        date.setUTCDate(startDate.getUTCDate() + i);
+        
+        const dateISO = isoDate(date);
+        const currentWeekNo = getWeekNumber(date);
+        const day = date.getUTCDate();
+        const dayOfWeek = date.getUTCDay();
+        
+        let classes = "calendar-day";
+        let title = "";
+        
+        if (date.getUTCMonth() !== month) {
+          classes += " other-month";
+        }
+        
+        if (dateISO === todayISO) {
+          classes += " today";
+        }
+
+        // CORREÇÃO: Aplica cores apenas para dias da semana (Seg-Sex)
+        if (dayOfWeek > 0 && dayOfWeek < 6) { 
+            
+            // Prioridade 4: Semana Selecionada (Azul)
+            if (currentWeekNo === state.calendar.selectedWeek) {
+                classes += " selected"; // Azul
+            }
+
+            // Prioridade 3: Semana Pendente (Amarelo)
+            const statusDaSemana = weekStatus.get(currentWeekNo);
+            if (statusDaSemana === 'pendente') {
+                classes += " scheduled"; // Amarelo
+            } 
+            // Prioridade 2: Semana OK (Verde)
+            else if (statusDaSemana === 'ok') {
+                classes += " completed"; // Verde
+            }
+
+            // Prioridade 1: Dia Específico Pendente (Vermelho)
+            // (Esta classe deve sobrepor as outras no CSS)
+            if (pendingDays.has(dateISO)) {
+                classes += " day-pending"; // Vermelho
+            }
+        }
+
+        // Tooltip (para todos os dias)
+        const agendamentosDoDia = agendamentosByDate[dateISO] || [];
+        if (agendamentosDoDia.length > 0) {
+          const details = agendamentosDoDia.map(a => `${formatDisplay(a.turma)} (${a.status})`);
+          title = [...new Set(details)].join('; ');
+        }
+        
+        let weekNumberHtml = "";
+        if (date.getUTCDay() === 1) { // 1 = Segunda (UTC)
+          // CORREÇÃO: Usa split no caractere correto
+          weekNumberHtml = `<span class="week-number">${currentWeekNo.split('-W')[1] || ''}</span>`;
+        }
+
+        calBody.innerHTML += `<div class="${classes}" title="${title}" data-dateiso="${dateISO}" data-week="${currentWeekNo}" data-dayofweek="${dayOfWeek}">
+            ${weekNumberHtml}
+            ${day}
+          </div>`;
+      }
+    }
+    
+    /**
+     * MODIFICADO: Limpa o painel de detalhes da semana.
+     */
+    function clearDayDetails() {
+      state.calendar.selectedWeek = null; // Limpa a semana
+      state.calendar.clickedDayISO = null; // Limpa o dia clicado
+      $("#day-details-date").textContent = "Nenhuma semana selecionada";
+      $("#day-details-body").innerHTML = `<tr><td colspan="3" class="text-center p-4 opacity-50 text-sm">Clique em um dia...</td></tr>`;
+      
+      // Apenas re-renderiza o calendário, não mexe nas classes
+      renderCalendar();
+    }
+
+    /**
+     * CORREÇÃO: Renomeado para updateWeekDetailsPanel
+     * Apenas atualiza o painel de detalhes.
+     */
+    function updateWeekDetailsPanel(weekNo) { 
+      if (!weekNo) {
+        // clearDayDetails(); // Não chama clear, pois o state já foi limpo no clique
+        return;
+      }
+      
+      const weekNumDisplay = weekNo.split('-W')[1];
+      $("#day-details-date").textContent = `Semana ${weekNumDisplay} (${weekNo.split('-W')[0]})`;
+      
+      const tbody = $("#day-details-body");
+      
+      const agendamentosDaSemana = state.agendamentos
+        .filter(a => getWeekNumber(new Date(a.dia + 'T12:00:00Z')) === weekNo)
+        .sort((a,b) => new Date(a.dia) - new Date(b.dia)); 
+        
+      if (agendamentosDaSemana.length === 0) {
+        tbody.innerHTML = `<tr><td colspan="3" class="text-center p-4 opacity-50 text-sm">Nenhum agendamento.</td></tr>`;
+      } else {
+        tbody.innerHTML = "";
+        for (const item of agendamentosDaSemana) {
+          // MODIFICADO: Dia pendente ganha classe vermelha
+          const statusClass = item.status === 'pendente' ? 'status-vermelho' : 'status-ok';
+          
+          const diaDate = new Date(item.dia + 'T12:00:00Z');
+          const diaDaSemana = diaDate.toLocaleDateString('pt-BR', { weekday: 'short', timeZone: 'UTC' });
+          
+          tbody.innerHTML += `
+            <tr class="${statusClass}">
+              <td>${diaDaSemana} (${diaDate.getUTCDate()})</td>
+              <td>${formatDisplay(item.turma)}</td>
+              <td class="text-center">${item.status}</td>
+            </tr>
+          `;
+        }
+      }
+    }
+    
+    function addAgendamento() {
+      const dia = $("#form-dia").value;
+      const sala = $("#form-sala").value; 
+      const turma = $("#form-turma").value;
+      const prof = $("#form-prof").value;
+      const status = $("#form-status").value; // MODIFICADO: Sempre "pendente"
+      
+      if (!dia || !sala || !turma || !prof) {
+        return toast("Dia, Sala, Turma e Professor são obrigatórios.", "error");
+      }
+      
+      const dbPath = `labs/${sala}/agendamentos`;
+      const pushRef = push(ref(db, dbPath)); 
+      
+      const payload = { dia, status, turma, prof };
+      
+      set(pushRef, payload)
+        .then(() => {
+          toast("Agendamento salvo!", "ok");
+          $("#form-dia").value = "";
+          $("#form-turma").value = "";
+          $("#form-prof").value = "";
+          // MODIFICADO: Linha do form-status removida
+        })
+        .catch((e) => {
+          console.error("Erro ao salvar:", e);
+          toast("Falha ao salvar agendamento.", "error");
+        });
+    }
+
+    async function removeAgendamento(id) {
+      const sala = state.selectionSala;
+      if (!id || !sala) {
+         console.error("Valores faltando para exclusão:", {id, sala});
+        return toast("Erro: Não foi possível determinar a Sala para exclusão.", "error");
+      }
+      
+      const ok = await confirmBox("Tem certeza que deseja excluir este agendamento?");
+      if (!ok) return;
+      
+      const dbPath = `labs/${sala}/agendamentos/${id}`;
+      remove(ref(db, dbPath))
+        .then(() => {
+          toast("Agendamento excluído.", "ok");
+        })
+        .catch((e) => {
+          console.error("Erro ao excluir:", e);
+          toast("Falha ao excluir.", "error");
+        });
+    }
+
+    function updateStatus(id, newStatus) {
+      const sala = state.selectionSala;
+      if (!id || !sala) {
+        console.error("Valores faltando para atualizar status:", {id, sala});
+        return toast("Erro: Não foi possível determinar a Sala para atualizar.", "error");
+      }
+
+      const dbPath = `labs/${sala}/agendamentos/${id}/status`;
+      set(ref(db, dbPath), newStatus)
+        .then(() => {
+          toast(`Status atualizado para ${newStatus}.`, "ok");
+        })
+        .catch((e) => {
+          console.error("Erro ao atualizar status:", e);
+          toast("Falha ao atualizar status.", "error");
+        });
+    }
+
+    function openEditModal(id) {
+      const item = state.agendamentos.find(a => a.id === id);
+      if (!item) return toast("Erro: Agendamento não encontrado.", "error");
+      
+      const sala = state.selectionSala;
+      const oldProfDisplay = formatDisplay(item.prof);
+
+      // Abre o modal com um campo de input
+      openModal({
+        title: "Editar Professor",
+        content: `
+          <div class="field">
+            <label for="modal-input-prof">Professor:</label>
+            <input id="modal-input-prof" class="input w-full" value="${oldProfDisplay}">
+          </div>
+        `,
+        confirmText: "Salvar",
+        onConfirm: () => {
+          const inputEl = $("#modal-input-prof");
+          const newProfDisplay = inputEl.value;
+          
+          if (!newProfDisplay) {
+            toast("O nome não pode ficar vazio.", "error");
+            return; 
+          }
+          
+          const newProf = formatKey(newProfDisplay);
+          const oldProf = formatKey(item.prof);
+
+          if (newProf === oldProf) {
+            closeModal();
+            return; 
+          }
+
+          if (!id || !sala) {
+            console.error("Valores faltando para editar:", {id, sala});
+            toast("Erro: Não foi possível determinar a Sala para editar.", "error");
+            closeModal();
+            return;
+          }
+
+          const dbPath = `labs/${sala}/agendamentos/${id}/prof`;
+          set(ref(db, dbPath), newProf)
+            .then(() => {
+              toast("Professor atualizado!", "ok");
+              closeModal();
+            })
+            .catch((e) => {
+              console.error("Erro ao editar professor:", e);
+              toast("Falha ao atualizar professor.", "error");
+              closeModal();
+            });
+        }
+      });
+      
+      setTimeout(() => $("#modal-input-prof").focus(), 100);
+    }
+
+    /* ========================== Funções de Gerenciamento ========================== */
+
+    function bindManagementLists() {
+      const paths = {
+        salas: '_listas/salas',
+        turmas: '_listas/turmas',
+        professores: '_listas/professores'
+      };
+
+      for (const [type, path] of Object.entries(paths)) {
+        onValue(ref(db, path), (snapshot) => {
+          const data = snapshot.val() || {};
+          console.log(`Lista ${type} carregada:`, data);
+          renderManagementList(type, data);
+        });
+      }
+    }
+
+    function renderManagementList(type, data) {
+      const listUl = $(`#list-${type}`);
+      const items = Object.entries(data).map(([id, value]) => ({ id, nome: value.nome }));
+      
+      if (listUl) {
+        listUl.innerHTML = "";
+        if (items.length === 0) {
+          listUl.innerHTML = `<li class="mgmt-list-item opacity-50">Nenhum item cadastrado.</li>`;
+        }
+        items.sort((a,b) => a.nome.localeCompare(b.nome)).forEach(item => {
+          const li = document.createElement("li");
+          li.className = "mgmt-list-item";
+          li.innerHTML = `
+            <span class="font-medium">${formatDisplay(item.nome)}</span>
+            <button data-id="${item.id}" data-type="${type}" data-action="delete-mgmt" class="btn-icon" title="Excluir">🗑</button>
+          `;
+          listUl.appendChild(li);
+        });
+      }
+
+      const selectsToUpdate = [];
+      if (type === 'salas') selectsToUpdate.push("#select-sala", "#form-sala");
+      if (type === 'turmas') selectsToUpdate.push("#select-turma", "#form-turma");
+      if (type === 'professores') selectsToUpdate.push("#select-prof", "#form-prof");
+
+      selectsToUpdate.forEach(selector => {
+        const select = $(selector);
+        if (!select) return;
+        
+        const currentValue = select.value; 
+        
+        if (selector.startsWith("#select-")) {
+          select.innerHTML = `<option value="">Selecione...</option>`;
+        } else {
+          select.innerHTML = `<option value="">Selecione...</option>`;
+        }
+        
+        items.sort((a,b) => a.nome.localeCompare(b.nome)).forEach(item => {
+          select.innerHTML += `<option value="${item.nome}">${formatDisplay(item.nome)}</option>`;
+        });
+        
+        select.value = currentValue; 
+      });
+    }
+
+    function addManagementItem(type) {
+      const inputElement = $(`#input-${type}`); 
+      
+      if (!inputElement) { 
+         console.error(`[BUG_CHECK] Elemento de input NÃO encontrado: #input-${type}`);
+         toast(`Erro: Input #input-${type} não encontrado.`, "error");
+         return;
+      }
+      
+      const nomeFormatado = formatKey(inputElement.value); 
+      
+      if (!nomeFormatado) {
+         toast("O nome não pode estar vazio.", "error");
+         return;
+      }
+      
+      const path = `_listas/${type}`;
+      push(ref(db, path), { nome: nomeFormatado })
+        .then(() => {
+          toast(`${formatDisplay(nomeFormatado)} adicionado!`, "ok");
+          inputElement.value = "";
+        })
+        .catch((e) => {
+          console.error("Erro ao adicionar item de gerenciamento:", e);
+          toast("Erro ao adicionar.", "error");
+        });
+    }
+
+    async function removeManagementItem(type, id) {
+      const itemNome = $(`button[data-id="${id}"]`).closest('.mgmt-list-item').querySelector('span').textContent;
+      
+      const ok = await confirmBox(`Tem certeza que deseja excluir "${itemNome}"?`);
+      if (!ok) return;
+      
+      const path = `_listas/${type}/${id}`;
+      remove(ref(db, path))
+        .then(() => {
+          toast(`"${itemNome}" excluído.`, "ok");
+        })
+        .catch((e) => {
+          console.error(e);
+          toast("Erro ao excluir.", "error");
+        });
+    }
+
+    // NOVO: Função para resetar todos os dados
+    async function resetAllData() {
+      const ok = await confirmBox(
+        "<strong>Atenção!</strong> Você está prestes a apagar TODAS as listas (Salas, Turmas, Professores) e TODOS os agendamentos de TODAS as salas. Esta ação não pode ser desfeita."
+      );
+      if (!ok) return;
+
+      const pathsToRemove = [
+        '_listas/salas',
+        '_listas/turmas',
+        '_listas/professores',
+        'labs' // Apaga todos os agendamentos de todas as labs
+      ];
+
+      try {
+        let promises = pathsToRemove.map(path => remove(ref(db, path)));
+        await Promise.all(promises);
+        
+        toast("Todos os dados foram resetados.", "ok");
+        // Força o usuário a voltar para a seleção, pois os dados atuais sumiram
+        showView('selection');
+      } catch (e) {
+        console.error("Erro ao resetar dados:", e);
+        toast("Falha ao resetar os dados.", "error");
+      }
+    }
+
+
+    /* ========================== Init ========================== */
+    function init(){
+      // initTheme(); // REMOVIDO
+      startClock();
+      bindManagementLists(); 
+      
+      showView('selection');
+      
+      $("#btn-selecionar").addEventListener("click", () => {
+        const sala = $("#select-sala").value;
+        if (!sala) {
+          return toast("Por favor, selecione uma Sala.", "error");
+        }
+        selectFilter(sala);
+      });
+      
+      $("#btn-change-filter").addEventListener("click", () => {
+        showView('selection');
+        clearDayDetails(); 
+        renderCalendar(); // Adicionado para limpar visualmente a seleção
+      });
+      
+      $("#btn-add-agenda").addEventListener("click", addAgendamento);
+      
+      $("#agenda-table-body").addEventListener("click", async (e) => {
+        const button = e.target.closest("button[data-action]");
+        if (button) {
+          const id = button.dataset.id;
+          const action = button.dataset.action;
+          
+          if (action === "delete") {
+            await removeAgendamento(id); 
+          } else if (action === "edit") {
+            openEditModal(id);
+          }
+        }
+      });
+
+      $("#agenda-table-body").addEventListener("change", (e) => {
+        const select = e.target.closest("select[data-action='status-change']");
+        if (select) {
+          const id = select.dataset.id;
+          const newStatus = select.value;
+          updateStatus(id, newStatus);
+        }
+      });
+      
+      // Listeners do Calendário (Navegação)
+      $("#cal-prev").addEventListener("click", () => {
+        state.calendar.month--;
+        if (state.calendar.month < 0) {
+          state.calendar.month = 11;
+          state.calendar.year--;
+        }
+        clearDayDetails(); // Limpa o estado
+        renderCalendar(); // Redesenha o calendário (sem seleção)
+        renderTable(); 
+        renderStats(); 
+      });
+
+      $("#cal-next").addEventListener("click", () => {
+        state.calendar.month++;
+        if (state.calendar.month > 11) {
+          state.calendar.month = 0;
+          state.calendar.year++;
+        }
+        clearDayDetails(); // Limpa o estado
+        renderCalendar(); // Redesenha o calendário (sem seleção)
+        renderTable(); 
+        renderStats(); 
+      });
+      
+      // CORREÇÃO DEFINITIVA: Listener de clique unificado
+      $("#cal-body").addEventListener("click", (e) => {
+        const dayCell = e.target.closest('.calendar-day'); 
+        if (!dayCell) return; // Sai se não for um dia
+
+        const selectedDate = dayCell.dataset.dateiso;
+        const selectedWeek = dayCell.dataset.week;
+        const dayOfWeek = dayCell.dataset.dayofweek; 
+        
+        // 1. Preenche o formulário (apenas se for do mês atual)
+        if(selectedDate && !dayCell.classList.contains('other-month')) {
+           $("#form-dia").value = selectedDate; 
+        }
+        
+        // 2. Lida com a seleção
+        // Se clicou em Fim de Semana (Dom=0 ou Sáb=6) - LIMPA A SELEÇÃO
+        if (dayOfWeek == 0 || dayOfWeek == 6) {
+           clearDayDetails(); // Limpa estado e painel
+           renderCalendar(); // Re-renderiza sem seleção
+           console.log("Fim de semana clicado. Seleção limpa.");
+        } 
+        // Se clicou em Dia Útil (Seg-Sex) - DEFINE A SELEÇÃO
+        // (Funciona para dias do 'mês atual' E 'outro mês')
+        else if (dayOfWeek > 0 && dayOfWeek < 6) {
+          state.calendar.selectedWeek = selectedWeek;
+          state.calendar.clickedDayISO = selectedDate;
+          updateWeekDetailsPanel(selectedWeek); // Atualiza painel de detalhes
+          renderCalendar(); // Redesenha com a nova seleção
+        }
+      });
+
+      // Listeners da Tela de Gerenciamento
+      $("#btn-open-management").addEventListener("click", () => showView('management'));
+      $("#btn-mgmt-voltar").addEventListener("click", () => showView('selection'));
+
+      $("#btn-add-sala").addEventListener("click", () => addManagementItem('salas'));
+      $("#btn-add-turma").addEventListener("click", () => addManagementItem('turmas'));
+      $("#btn-add-prof").addEventListener("click", () => addManagementItem('professores'));
+
+      // MODIFICADO: Event listener agora é async para aguardar o confirmBox
+      $("#management-view").addEventListener("click", async (e) => {
+        const button = e.target.closest("button[data-action='delete-mgmt']");
+        if (button) {
+          const id = button.dataset.id;
+          const type = button.dataset.type;
+          await removeManagementItem(type, id); // Aguarda a confirmação
+        }
+      });
+      
+      // NOVO: Listener para o botão de reset
+      $("#btn-reset-all").addEventListener("click", resetAllData);
+      
+      renderCalendar(); 
+    }
+
+    init();
+  </script>
+</body>
+</html>
